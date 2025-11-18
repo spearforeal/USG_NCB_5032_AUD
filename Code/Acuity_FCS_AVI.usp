@@ -1,0 +1,396 @@
+#symbol_name "Acuity_FCS_AVI_v0"
+#default_volatile
+#enable_trace
+#define_constant CRLF "\x0D\x0A"
+#define_constant MAX_ITEMS 36
+#define_constant MAX_ITEMS_PLUS_1 37
+#define_constant MAX_SCENES 12
+#define_constant MIN_LEVEL 0
+#define_constant MAX_LEVEL 100
+
+#define_constant DEFAULT_STEP 5
+#define_constant DEFAULT_FADE 0
+#define_constant DEFAULT_SCENE_LEVEL 100
+#define_constant REPEAT_START_MS 300
+#define_constant REPEAT_EVERY_MS 120
+
+#DEFINE_CONSTANT RX_INPUT_SIZE     255    
+#DEFINE_CONSTANT RX_BUFFER_SIZE    2048
+
+#DEFINE_CONSTANT LEN_STATUS_CH     15        
+#DEFINE_CONSTANT LEN_STATUS_ZN     12  
+// ===========Inputs===========
+digital_input Initialize;
+digital_input Poll;
+digital_input Debug;
+digital_input _SKIP_;
+digital_input Channel_Up, Channel_Down;
+digital_input Zone_Up, Zone_Down;
+digital_input _SKIP_;
+digital_input AllOn, AllOff;
+digital_input Scene[12];
+
+analog_input Channel_ID;
+analog_input Zone_ID;
+analog_input StepSize;
+analog_input MinLevel;
+analog_input MaxLevel;
+analog_input FadeSeconds;
+analog_input Scene_Level;
+
+string_input Room_Letter$[4];
+string_input Rx$[255];
+
+
+// ===========Outputs===========
+string_output Tx$;
+digital_output Ok_fb;
+digital_output Failed_fb;
+analog_output Scene_Id_fb;
+analog_output Channel_Level_fb[36];
+analog_output Zone_Level_fb[36,10];
+
+string gBuff$[RX_BUFFER_SIZE];
+integer gDbg;
+integer gChLevel[MAX_ITEMS_PLUS_1];
+integer gZnLevel[MAX_ITEMS_PLUS_1];
+integer gLastScene;
+integer gStep;
+integer gMin;
+integer gMax;
+integer gFade;
+integer gSceneLevel;
+
+function SendCmd(string s$)
+{
+	makestring(Tx$, "%s%s", s$, CRLF);
+	if(gDbg)
+	{
+		Print("AVI TX: %s\r\n", s$);
+	}
+}
+integer_function KeepInRange(integer value, integer lowbound, integer highbound)
+{
+	if(value < lowbound)
+	{
+		return (lowbound);
+	}
+	if(value > highbound)
+	{
+		return (highbound);
+	}
+	return (value);
+}
+string_function BuildCmd(string kind$, integer id, integer level, integer fade, string room$)
+{
+	string cmd$[64];
+	integer val;
+	val = KeepInRange(level, MIN_LEVEL, MAX_LEVEL);
+	makestring(cmd$, "%s %d %d", kind$, id, val);
+	if(fade > 0)
+	{
+		makestring(cmd$, "%s %d", cmd$, fade);
+	}
+	if(len(room$) > 0)
+	{
+		makestring(cmd$, "%s 0 %s", cmd$, room$);
+	}
+	return (cmd$);
+}
+string_function BuildStatusCmd(string kind$, string selector$, string room$)
+{
+	string cmd$[64];
+	makestring(cmd$, "status %s %s", kind$, selector$);
+	if(len(room$) > 0)
+	{
+		makestring(cmd$, "%s 0 %s", cmd$, room$);
+	}
+	return (cmd$);
+}
+function PollCmd()
+{
+	integer i;
+	string zoneCmd$[32];
+	
+	SendCmd(BuildCmd("status channel", 0, 0, 0, Room_Letter$));
+	for(i = 1 to MAX_ITEMS)
+	{
+		makestring(zoneCmd$, "status zone %d", i);
+		SendCmd(zoneCmd$);
+	}
+	SendCmd(BuildCmd("status scene", 0, 0, 0, Room_Letter$));
+	SendCmd("status links");
+	
+}
+function ParseStatus(string line$)
+{
+	STRING rest$[64]; 
+	string rest2$[64];
+	INTEGER sp, id, lvl, sp2, id2, lvl2;
+	if(line$ = "Ok"){Ok_fb = 1; Failed_fb = 0; return;}
+	if(line$ = "Fail"){Ok_fb = 0; Failed_fb = 1; return;}
+	
+	if(left(line$, LEN_STATUS_CH) = "status channel")
+	{
+		rest$ = mid(line$, LEN_STATUS_CH + 1, len(line$) - LEN_STATUS_CH);
+		sp = find(rest$, " ");
+		if(sp > 0)
+		{
+			id = atoi(left(rest$, sp - 1));
+			lvl = atoi(mid(rest$, sp + 1, len(rest$) - sp));
+			if((id >= 1) && (id <= MAX_ITEMS))
+			{
+				lvl = KeepInRange(lvl, MIN_LEVEL, MAX_LEVEL);
+				gChLevel[id] = lvl;
+				Channel_Level_fb[id] = lvl;
+			}
+		}
+		return;
+	}
+	if(left(line$, LEN_STATUS_ZN) = "status zone" )
+	{
+		rest2$ = mid(line$, LEN_STATUS_ZN + 1, len(line$) - LEN_STATUS_ZN);
+		sp2 = find(rest2$, " ");
+		if(sp2 > 0)
+		{
+			id2 = atoi(left(rest2$, sp2 - 1));
+			lvl2 = atoi(mid(rest2$, sp2 + 1, len(rest2$) - sp2));
+			if((id2 >= 1) && (id2 <= MAX_ITEMS))
+			{
+				lvl2 = KeepInRange(lvl2, MIN_LEVEL, MAX_LEVEL);
+				gZnLevel[id2] = lvl2;
+				Zone_Level_fb[id2] = lvl2;
+			}
+		}
+		return;
+	}
+}
+function ParseRxBuffer()
+{
+	string line$[256];
+	integer pos;
+	while((pos = find(gBuff$, CRLF)) > 0)
+	{
+		line$ = left(gBuff$, pos - 1);
+		gBuff$ = mid(gBuff$, pos + 2, len(gBuff$) - pos - 1);
+		ParseStatus(line$);
+		
+	}
+}
+function RefreshSettings()
+{
+	gStep = StepSize;
+	gMin = MinLevel;
+	gMax = MaxLevel;
+	gFade = FadeSeconds;
+	gSceneLevel = Scene_Level;
+	if(gStep <= 0)
+	{
+		gStep = DEFAULT_STEP;
+	}
+	if(gMin < MIN_LEVEL)
+	{
+		gMin = MIN_LEVEL;
+	}
+	if(gMax <= 0)
+	{
+		gMax = MAX_LEVEL;
+	}
+	if(gMax > MAX_LEVEL)
+	{
+		gMax = MAX_LEVEL;
+	}
+	if(gFade < 0)
+	{
+		gFade = DEFAULT_FADE;
+	}
+	if(gSceneLevel <= 0)
+	{
+		gSceneLevel = DEFAULT_SCENE_LEVEL;
+	}
+	gSceneLevel = KeepInRange(gSceneLevel, MIN_LEVEL, MAX_LEVEL);
+}
+function AdjustChannel(integer dir)
+{
+	integer id; 
+	integer lvl;
+	RefreshSettings();
+	id = Channel_ID;
+	id = KeepInRange(id, 1, MAX_ITEMS);
+	lvl = gChLevel[id];
+	lvl = lvl + (dir * gStep);
+	lvl = KeepInRange(lvl, gMin, gMax);
+	gChLevel[id] = lvl;
+	Channel_Level_fb[id] = lvl;
+	SendCmd(BuildCmd("channel", id, lvl, gFade, Room_Letter$));
+}
+function RepeatChannelUp()
+{
+	AdjustChannel(1);
+	wait(REPEAT_EVERY_MS, ChUpTick)
+	{
+		RepeatChannelUp();
+	}
+}
+function RepeatChannelDown()
+{
+	AdjustChannel(-1);
+	wait(REPEAT_EVERY_MS, ChDnTick)
+	{
+		RepeatChannelDown();
+	}
+}
+function AdjustZone(integer dir)
+{
+	integer id; 
+	integer lvl;
+	RefreshSettings();
+	id = Zone_ID;
+	id = KeepInRange(id, 1, MAX_ITEMS);
+	lvl = gZnLevel[id];
+	lvl = lvl + (dir * gStep);
+	lvl = KeepInRange(lvl, gMin, gMax);
+	gZnLevel[id] = lvl;
+	Zone_Level_fb[id] = lvl;
+	SendCmd(BuildCmd("zone", id, lvl, gFade, Room_Letter$));
+}
+function RepeatZoneUp()
+{
+	AdjustZone(1);
+	wait(REPEAT_EVERY_MS, ZnUpTick)
+	{
+		RepeatZoneUp();
+	}
+}
+function RepeatZoneDown()
+{
+	AdjustZone(1);
+	wait(REPEAT_EVERY_MS, ZnDnTick)
+	{
+		RepeatZoneDown();
+	}
+}
+function ActivateScene(integer sceneId, integer level)
+{
+	integer sid;
+	integer lvl;
+	string cmd$[64];
+	RefreshSettings();
+	sid = KeepInRange(sceneId, 1, MAX_SCENES);
+	if(level < 0)
+	{
+		lvl = 0;
+	}
+	else if(level > 100)
+	{
+		lvl = 100;
+	}
+	else
+	{
+		lvl = level;
+	}
+	if(len(Room_Letter$) > 0)
+	{
+		makestring(cmd$, "scene %d %d 0 %s", sid, lvl, Room_Letter$);
+	}
+	else
+	{
+		makestring(cmd$, "scene %d %d", sid, lvl);
+	}
+	SendCmd(cmd$);
+	gLastScene = sid;
+	Scene_Id_fb = sid;
+}
+push Channel_Up
+{
+	AdjustChannel(1);
+	wait(REPEAT_EVERY_MS, ChUpDelay)
+	{
+		RepeatChannelUp();
+	}
+}
+release Channel_Up
+{
+	cancelwait(ChUpDelay);
+	cancelwait(ChUpTick);
+}
+push Channel_Down
+{
+	AdjustChannel(-1);
+	wait(REPEAT_EVERY_MS, ChDnDelay)
+	{
+		RepeatChannelDown();
+	}
+}
+release Channel_Down
+{
+	cancelwait(ChDnDelay);
+	cancelwait(ChDnTick);
+}
+
+push Zone_Up
+{
+	AdjustZone(1);
+	wait(REPEAT_START_MS, ZnUpDelay)
+	{
+		RepeatZoneUp();
+	}
+}
+release Zone_Up
+{
+	cancelwait(ZnUpDelay);
+	cancelwait(ZnUpTick);
+}
+push Zone_Down
+{
+	AdjustZone(-1);
+	wait(REPEAT_START_MS, ZnDnDelay)
+	{
+		RepeatZoneDown();
+	}
+}
+release Zone_Down
+{
+	cancelwait(ZnDnDelay);
+	cancelwait(ZnDnTick);
+}
+push Scene
+{
+	integer idx;
+	idx = GetLastModifiedArrayIndex();
+	ActivateScene(idx, gSceneLevel);
+}
+push AllOn
+{
+	ActivateScene(1, 100);
+}
+push AllOff
+{
+	ActivateScene(1, 0);
+}
+change Rx$
+{
+	makestring(gBuff$, "%s%s", gBuff$, Rx$);
+	ParseRxBuffer();
+}
+
+push Initialize
+{
+	integer i;
+	
+	gDbg = 0;
+	Ok_fb = 0;
+	Failed_fb = 0;
+	gLastScene = 0;
+	
+	for(i = 1 to MAX_ITEMS)
+	{
+		gChLevel[i] = 0;
+		gZnLevel[i] = 0;
+		Channel_Level_fb[i] = 0;
+		Zone_Level_fb[i] = 0;
+	}
+	
+	RefreshSettings();
+	PollCmd();	
+}
