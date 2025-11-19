@@ -368,6 +368,10 @@ push AllOff
 {
 	ActivateScene(1, 0);
 }
+push Poll
+{
+	PollCmd();
+}
 change Rx$
 {
 	makestring(gBuff$, "%s%s", gBuff$, Rx$);
