@@ -317,20 +317,28 @@ function ActivateScene(integer sceneId, integer level)
 }
 function AdjustSceneLevel(integer dir)
 {
-	RefreshSettings();  // updates step/min/max/fade + clamps gSceneLevel
+	// Update step / limits, but don't overwrite gSceneLevel anymore
+	RefreshSettings();
 	
 	gSceneLevel = gSceneLevel + (dir * gStep);
 	gSceneLevel = KeepInRange(gSceneLevel, MIN_LEVEL, MAX_LEVEL);
 	
 	Scene_Level_fb = gSceneLevel;
+	
+	// If we’ve already fired at least one scene,
+	// re-apply that same scene ID at the new level
+	if(gLastScene > 0)
+	{
+		ActivateScene(gLastScene, gSceneLevel);
+	}
 }
 push Link_A_B
 {
-	SendCmd("link A B");
+	SendCmd("link AB");
 }
 push Unlink_A_B
 {
-	SendCmd("unlink A B");
+	SendCmd("unlink AB");
 }
 push Scene_Level_Up
 {
