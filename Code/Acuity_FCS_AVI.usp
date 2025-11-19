@@ -114,15 +114,17 @@ string_function BuildStatusCmd(string kind$, string selector$, string room$)
 function PollCmd()
 {
 	integer i;
-	string zoneCmd$[32];
+	string cmd$[32];
 	
-	SendCmd(BuildCmd("status channel", 0, 0, 0, Room_Letter$));
-	for(i = 1 to MAX_ITEMS)
-	{
-		makestring(zoneCmd$, "status zone %d", i);
-		SendCmd(zoneCmd$);
-	}
-	SendCmd(BuildCmd("status scene", 0, 0, 0, Room_Letter$));
+	//SendCmd(BuildCmd("status channel", 0, 0, 0, Room_Letter$));
+	//for(i = 1 to MAX_ITEMS)
+	//{
+	//	makestring(zoneCmd$, "status zone %d", i);
+	//	SendCmd(zoneCmd$);
+	//}
+	//SendCmd(BuildCmd("status scene", 0, 0, 0, Room_Letter$));
+	makestring(cmd$,"status scene 1 0 %s", Room_Letter$);
+	SendCmd(cmd$);
 	SendCmd("status links");
 	
 }
@@ -317,7 +319,7 @@ function ActivateScene(integer sceneId, integer level)
 }
 function AdjustSceneLevel(integer dir)
 {
-	// Update step / limits, but don't overwrite gSceneLevel anymore
+	// Make sure step / min / max are current and gSceneLevel is clamped
 	RefreshSettings();
 	
 	gSceneLevel = gSceneLevel + (dir * gStep);
@@ -325,13 +327,10 @@ function AdjustSceneLevel(integer dir)
 	
 	Scene_Level_fb = gSceneLevel;
 	
-	// If we’ve already fired at least one scene,
-	// re-apply that same scene ID at the new level
-	if(gLastScene > 0)
-	{
-		ActivateScene(gLastScene, gSceneLevel);
-	}
+	// Always treat Scene 1 as the “live” scene this control rides
+	ActivateScene(1, gSceneLevel);
 }
+
 push Link_A_B
 {
 	SendCmd("link AB");
