@@ -28,6 +28,9 @@ digital_input Channel_Up, Channel_Down;
 digital_input Zone_Up, Zone_Down;
 digital_input _SKIP_;
 digital_input AllOn, AllOff;
+digital_input Scene_Level_Up, Scene_Level_Down;
+digital_input Link_A_B;
+digital_input Unlink_A_B;
 digital_input Scene[12];
 
 analog_input Channel_ID;
@@ -47,6 +50,7 @@ string_output Tx$;
 digital_output Ok_fb;
 digital_output Failed_fb;
 analog_output Scene_Id_fb;
+analog_output Scene_Level_fb;
 analog_output Channel_Level_fb[36];
 analog_output Zone_Level_fb[36,10];
 
@@ -180,10 +184,10 @@ function ParseRxBuffer()
 function RefreshSettings()
 {
 	gStep = StepSize;
-	gMin = MinLevel;
-	gMax = MaxLevel;
+	gMin  = MinLevel;
+	gMax  = MaxLevel;
 	gFade = FadeSeconds;
-	gSceneLevel = Scene_Level;
+	
 	if(gStep <= 0)
 	{
 		gStep = DEFAULT_STEP;
@@ -204,11 +208,21 @@ function RefreshSettings()
 	{
 		gFade = DEFAULT_FADE;
 	}
+	
+	// --- Scene level handling ---
+	// Only initialize gSceneLevel once (when it is 0),
+	// so button adjustments are preserved.
 	if(gSceneLevel <= 0)
 	{
-		gSceneLevel = DEFAULT_SCENE_LEVEL;
+		gSceneLevel = Scene_Level;
+		if(gSceneLevel <= 0)
+		{
+			gSceneLevel = DEFAULT_SCENE_LEVEL;
+		}
 	}
+	
 	gSceneLevel = KeepInRange(gSceneLevel, MIN_LEVEL, MAX_LEVEL);
+	Scene_Level_fb = gSceneLevel;
 }
 function AdjustChannel(integer dir)
 {
@@ -300,6 +314,32 @@ function ActivateScene(integer sceneId, integer level)
 	SendCmd(cmd$);
 	gLastScene = sid;
 	Scene_Id_fb = sid;
+}
+function AdjustSceneLevel(integer dir)
+{
+	RefreshSettings();  // updates step/min/max/fade + clamps gSceneLevel
+	
+	gSceneLevel = gSceneLevel + (dir * gStep);
+	gSceneLevel = KeepInRange(gSceneLevel, MIN_LEVEL, MAX_LEVEL);
+	
+	Scene_Level_fb = gSceneLevel;
+}
+push Link_A_B
+{
+	SendCmd("link A B");
+}
+push Unlink_A_B
+{
+	SendCmd("unlink A B");
+}
+push Scene_Level_Up
+{
+	AdjustSceneLevel(1);
+}
+
+push Scene_Level_Down
+{
+	AdjustSceneLevel(-1);
 }
 push Channel_Up
 {
@@ -396,5 +436,4 @@ push Initialize
 	}
 	
 	RefreshSettings();
-	PollCmd();	
 }
