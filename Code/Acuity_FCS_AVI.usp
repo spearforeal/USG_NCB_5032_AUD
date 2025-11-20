@@ -1,6 +1,7 @@
 #symbol_name "Acuity_FCS_AVI_v0"
 #default_volatile
 #enable_trace
+
 #define_constant CRLF "\x0D\x0A"
 #define_constant MAX_ITEMS 36
 #define_constant MAX_ITEMS_PLUS_1 37
@@ -17,24 +18,24 @@
 #DEFINE_CONSTANT RX_INPUT_SIZE     255    
 #DEFINE_CONSTANT RX_BUFFER_SIZE    2048
 
-#DEFINE_CONSTANT LEN_STATUS_CH     15        
-#DEFINE_CONSTANT LEN_STATUS_ZN     12  
-// ===========Inputs===========
+#DEFINE_CONSTANT LEN_STATUS_CH     15      // "status channel "
+
+// =========== Inputs ===========
 digital_input Initialize;
-digital_input Poll;
+digital_input Poll;              // global poll: channels + links
+digital_input Poll_Channels;     // poll channel levels only
+digital_input Poll_Links;        // poll link status only
 digital_input Debug;
 digital_input _SKIP_;
 digital_input Channel_Up, Channel_Down;
-digital_input Zone_Up, Zone_Down;
 digital_input _SKIP_;
-digital_input AllOn, AllOff;
+digital_input AllOn, AllOff;     // Scene 1 all on/off
 digital_input Scene_Level_Up, Scene_Level_Down;
 digital_input Link_A_B;
 digital_input Unlink_A_B;
 digital_input Scene[12];
 
 analog_input Channel_ID;
-analog_input Zone_ID;
 analog_input StepSize;
 analog_input MinLevel;
 analog_input MaxLevel;
@@ -44,26 +45,29 @@ analog_input Scene_Level;
 string_input Room_Letter$[4];
 string_input Rx$[255];
 
-
-// ===========Outputs===========
+// =========== Outputs ===========
 string_output Tx$;
 digital_output Ok_fb;
 digital_output Failed_fb;
+digital_output Link_AB_Linked_fb;    // 1 = A/B linked
+digital_output Link_AB_Unlinked_fb;  // 1 = A/B not linked
+
 analog_output Scene_Id_fb;
 analog_output Scene_Level_fb;
-analog_output Channel_Level_fb[36];
-analog_output Zone_Level_fb[36,10];
+analog_output Channel_Level_fb[36];  // channel levels only
 
+// =========== Globals ===========
 string gBuff$[RX_BUFFER_SIZE];
 integer gDbg;
 integer gChLevel[MAX_ITEMS_PLUS_1];
-integer gZnLevel[MAX_ITEMS_PLUS_1];
 integer gLastScene;
 integer gStep;
 integer gMin;
 integer gMax;
 integer gFade;
 integer gSceneLevel;
+
+// ================= Helpers =================
 
 function SendCmd(string s$)
 {
@@ -73,6 +77,7 @@ function SendCmd(string s$)
 		Print("AVI TX: %s\r\n", s$);
 	}
 }
+
 integer_function KeepInRange(integer value, integer lowbound, integer highbound)
 {
 	if(value < lowbound)
@@ -85,104 +90,185 @@ integer_function KeepInRange(integer value, integer lowbound, integer highbound)
 	}
 	return (value);
 }
+
 string_function BuildCmd(string kind$, integer id, integer level, integer fade, string room$)
 {
 	string cmd$[64];
 	integer val;
+	
 	val = KeepInRange(level, MIN_LEVEL, MAX_LEVEL);
 	makestring(cmd$, "%s %d %d", kind$, id, val);
+	
 	if(fade > 0)
 	{
 		makestring(cmd$, "%s %d", cmd$, fade);
 	}
+	
 	if(len(room$) > 0)
 	{
 		makestring(cmd$, "%s 0 %s", cmd$, room$);
 	}
+	
 	return (cmd$);
 }
+
 string_function BuildStatusCmd(string kind$, string selector$, string room$)
 {
 	string cmd$[64];
+	
 	makestring(cmd$, "status %s %s", kind$, selector$);
 	if(len(room$) > 0)
 	{
 		makestring(cmd$, "%s 0 %s", cmd$, room$);
 	}
+	
 	return (cmd$);
 }
+
+// ================= Polling helpers =================
+
+function PollChannels()
+{
+	string cmd$[64];
+	
+	if(len(Room_Letter$) > 0)
+	{
+		makestring(cmd$, "status channel all 0 %s", Room_Letter$);
+	}
+	else
+	{
+		makestring(cmd$, "status channel all");
+	}
+	SendCmd(cmd$);
+}
+
+function PollLinks()
+{
+	// global link status; we only care about A/B in ParseStatus()
+	SendCmd("status links");
+}
+
 function PollCmd()
 {
-	integer i;
-	string cmd$[32];
-	
-	//SendCmd(BuildCmd("status channel", 0, 0, 0, Room_Letter$));
-	//for(i = 1 to MAX_ITEMS)
-	//{
-	//	makestring(zoneCmd$, "status zone %d", i);
-	//	SendCmd(zoneCmd$);
-	//}
-	//SendCmd(BuildCmd("status scene", 0, 0, 0, Room_Letter$));
-	makestring(cmd$,"status scene 1 0 %s", Room_Letter$);
-	SendCmd(cmd$);
-	SendCmd("status links");
-	
+	// global "Poll" button does both
+	PollChannels();
+	PollLinks();
 }
+
+// ================= RX Parsing =================
+
 function ParseStatus(string line$)
 {
-	STRING rest$[64]; 
-	string rest2$[64];
-	INTEGER sp, id, lvl, sp2, id2, lvl2;
-	if(line$ = "Ok"){Ok_fb = 1; Failed_fb = 0; return;}
-	if(line$ = "Fail"){Ok_fb = 0; Failed_fb = 1; return;}
+	string rest$[128];
+	string token$[8];
+	integer sp;
+	integer id;
+	integer lvl;
+	integer idx;
 	
+	if(line$ = "Ok")
+	{
+		Ok_fb = 1;
+		Failed_fb = 0;
+		return;
+	}
+	
+	if(line$ = "Fail")
+	{
+		Ok_fb = 0;
+		Failed_fb = 1;
+		return;
+	}
+	
+	// ---- Channel status ----
 	if(left(line$, LEN_STATUS_CH) = "status channel")
 	{
+		// strip "status channel "
 		rest$ = mid(line$, LEN_STATUS_CH + 1, len(line$) - LEN_STATUS_CH);
-		sp = find(rest$, " ");
-		if(sp > 0)
+		
+		// Handle "status channel ALL <lvl1> <lvl2> ..."
+		if(left(rest$, 3) = "ALL")
 		{
-			id = atoi(left(rest$, sp - 1));
-			lvl = atoi(mid(rest$, sp + 1, len(rest$) - sp));
-			if((id >= 1) && (id <= MAX_ITEMS))
+			// skip "ALL "
+			rest$ = mid(rest$, 5, len(rest$) - 4);
+			idx = 0;
+			
+			while((len(rest$) > 0) & (idx < MAX_ITEMS))
 			{
+				idx = idx + 1;
+				sp = find(rest$, " ");
+				
+				if(sp > 0)
+				{
+					token$ = left(rest$, sp - 1);
+					rest$  = mid(rest$, sp + 1, len(rest$) - sp);
+				}
+				else
+				{
+					token$ = rest$;
+					rest$  = "";
+				}
+				
+				lvl = atoi(token$);
 				lvl = KeepInRange(lvl, MIN_LEVEL, MAX_LEVEL);
-				gChLevel[id] = lvl;
-				Channel_Level_fb[id] = lvl;
+				
+				gChLevel[idx]          = lvl;
+				Channel_Level_fb[idx]  = lvl;
+			}
+		}
+		else
+		{
+			// Handle single-channel response: "status channel <id> <lvl>"
+			sp = find(rest$, " ");
+			if(sp > 0)
+			{
+				id  = atoi(left(rest$, sp - 1));
+				lvl = atoi(mid(rest$,  sp + 1, len(rest$) - sp));
+				
+				if((id >= 1) && (id <= MAX_ITEMS))
+				{
+					lvl = KeepInRange(lvl, MIN_LEVEL, MAX_LEVEL);
+					gChLevel[id]          = lvl;
+					Channel_Level_fb[id]  = lvl;
+				}
 			}
 		}
 		return;
 	}
-	if(left(line$, LEN_STATUS_ZN) = "status zone" )
+	
+	// ---- Link status ----
+	// We assume "status links" returns some text where "AB" is present if linked.
+	if(left(line$, 12) = "status links")
 	{
-		rest2$ = mid(line$, LEN_STATUS_ZN + 1, len(line$) - LEN_STATUS_ZN);
-		sp2 = find(rest2$, " ");
-		if(sp2 > 0)
+		if(find(line$, "AB") > 0)
 		{
-			id2 = atoi(left(rest2$, sp2 - 1));
-			lvl2 = atoi(mid(rest2$, sp2 + 1, len(rest2$) - sp2));
-			if((id2 >= 1) && (id2 <= MAX_ITEMS))
-			{
-				lvl2 = KeepInRange(lvl2, MIN_LEVEL, MAX_LEVEL);
-				gZnLevel[id2] = lvl2;
-				Zone_Level_fb[id2] = lvl2;
-			}
+			Link_AB_Linked_fb   = 1;
+			Link_AB_Unlinked_fb = 0;
+		}
+		else
+		{
+			Link_AB_Linked_fb   = 0;
+			Link_AB_Unlinked_fb = 1;
 		}
 		return;
 	}
 }
+
 function ParseRxBuffer()
 {
 	string line$[256];
 	integer pos;
+	
 	while((pos = find(gBuff$, CRLF)) > 0)
 	{
-		line$ = left(gBuff$, pos - 1);
+		line$  = left(gBuff$, pos - 1);
 		gBuff$ = mid(gBuff$, pos + 2, len(gBuff$) - pos - 1);
 		ParseStatus(line$);
-		
 	}
 }
+
+// ================= Level / Scene Logic =================
+
 function RefreshSettings()
 {
 	gStep = StepSize;
@@ -226,20 +312,27 @@ function RefreshSettings()
 	gSceneLevel = KeepInRange(gSceneLevel, MIN_LEVEL, MAX_LEVEL);
 	Scene_Level_fb = gSceneLevel;
 }
+
 function AdjustChannel(integer dir)
 {
 	integer id; 
 	integer lvl;
+	
 	RefreshSettings();
+	
 	id = Channel_ID;
 	id = KeepInRange(id, 1, MAX_ITEMS);
+	
 	lvl = gChLevel[id];
 	lvl = lvl + (dir * gStep);
 	lvl = KeepInRange(lvl, gMin, gMax);
-	gChLevel[id] = lvl;
-	Channel_Level_fb[id] = lvl;
+	
+	gChLevel[id]          = lvl;
+	Channel_Level_fb[id]  = lvl;
+	
 	SendCmd(BuildCmd("channel", id, lvl, gFade, Room_Letter$));
 }
+
 function RepeatChannelUp()
 {
 	AdjustChannel(1);
@@ -248,6 +341,7 @@ function RepeatChannelUp()
 		RepeatChannelUp();
 	}
 }
+
 function RepeatChannelDown()
 {
 	AdjustChannel(-1);
@@ -256,43 +350,17 @@ function RepeatChannelDown()
 		RepeatChannelDown();
 	}
 }
-function AdjustZone(integer dir)
-{
-	integer id; 
-	integer lvl;
-	RefreshSettings();
-	id = Zone_ID;
-	id = KeepInRange(id, 1, MAX_ITEMS);
-	lvl = gZnLevel[id];
-	lvl = lvl + (dir * gStep);
-	lvl = KeepInRange(lvl, gMin, gMax);
-	gZnLevel[id] = lvl;
-	Zone_Level_fb[id] = lvl;
-	SendCmd(BuildCmd("zone", id, lvl, gFade, Room_Letter$));
-}
-function RepeatZoneUp()
-{
-	AdjustZone(1);
-	wait(REPEAT_EVERY_MS, ZnUpTick)
-	{
-		RepeatZoneUp();
-	}
-}
-function RepeatZoneDown()
-{
-	AdjustZone(1);
-	wait(REPEAT_EVERY_MS, ZnDnTick)
-	{
-		RepeatZoneDown();
-	}
-}
+
 function ActivateScene(integer sceneId, integer level)
 {
 	integer sid;
 	integer lvl;
 	string cmd$[64];
+	
 	RefreshSettings();
+	
 	sid = KeepInRange(sceneId, 1, MAX_SCENES);
+	
 	if(level < 0)
 	{
 		lvl = 0;
@@ -305,6 +373,7 @@ function ActivateScene(integer sceneId, integer level)
 	{
 		lvl = level;
 	}
+	
 	if(len(Room_Letter$) > 0)
 	{
 		makestring(cmd$, "scene %d %d 0 %s", sid, lvl, Room_Letter$);
@@ -313,10 +382,12 @@ function ActivateScene(integer sceneId, integer level)
 	{
 		makestring(cmd$, "scene %d %d", sid, lvl);
 	}
+	
 	SendCmd(cmd$);
-	gLastScene = sid;
-	Scene_Id_fb = sid;
+	gLastScene   = sid;
+	Scene_Id_fb  = sid;
 }
+
 function AdjustSceneLevel(integer dir)
 {
 	// Make sure step / min / max are current and gSceneLevel is clamped
@@ -331,14 +402,18 @@ function AdjustSceneLevel(integer dir)
 	ActivateScene(1, gSceneLevel);
 }
 
+// ================= Events =================
+
 push Link_A_B
 {
 	SendCmd("link AB");
 }
+
 push Unlink_A_B
 {
 	SendCmd("unlink AB");
 }
+
 push Scene_Level_Up
 {
 	AdjustSceneLevel(1);
@@ -348,6 +423,9 @@ push Scene_Level_Down
 {
 	AdjustSceneLevel(-1);
 }
+
+// ---- Channel ramp buttons ----
+
 push Channel_Up
 {
 	AdjustChannel(1);
@@ -356,11 +434,13 @@ push Channel_Up
 		RepeatChannelUp();
 	}
 }
+
 release Channel_Up
 {
 	cancelwait(ChUpDelay);
 	cancelwait(ChUpTick);
 }
+
 push Channel_Down
 {
 	AdjustChannel(-1);
@@ -369,78 +449,78 @@ push Channel_Down
 		RepeatChannelDown();
 	}
 }
+
 release Channel_Down
 {
 	cancelwait(ChDnDelay);
 	cancelwait(ChDnTick);
 }
 
-push Zone_Up
+// ---- Scene 1 All On / All Off ----
+
+push AllOn
 {
-	AdjustZone(1);
-	wait(REPEAT_START_MS, ZnUpDelay)
-	{
-		RepeatZoneUp();
-	}
+	ActivateScene(1, 100);
 }
-release Zone_Up
+
+push AllOff
 {
-	cancelwait(ZnUpDelay);
-	cancelwait(ZnUpTick);
+	ActivateScene(1, 0);
 }
-push Zone_Down
-{
-	AdjustZone(-1);
-	wait(REPEAT_START_MS, ZnDnDelay)
-	{
-		RepeatZoneDown();
-	}
-}
-release Zone_Down
-{
-	cancelwait(ZnDnDelay);
-	cancelwait(ZnDnTick);
-}
+
+// ---- Scene array ----
+
 push Scene
 {
 	integer idx;
 	idx = GetLastModifiedArrayIndex();
 	ActivateScene(idx, gSceneLevel);
 }
-push AllOn
-{
-	ActivateScene(1, 100);
-}
-push AllOff
-{
-	ActivateScene(1, 0);
-}
+
+// ---- Poll buttons ----
+
 push Poll
 {
-	PollCmd();
+	PollCmd();          // channels + links
 }
+
+push Poll_Channels
+{
+	PollChannels();
+}
+
+push Poll_Links
+{
+	PollLinks();
+}
+
+// ---- RX handling ----
+
 change Rx$
 {
 	makestring(gBuff$, "%s%s", gBuff$, Rx$);
 	ParseRxBuffer();
 }
 
+// ---- Initialize ----
+
 push Initialize
 {
 	integer i;
 	
-	gDbg = 0;
-	Ok_fb = 0;
-	Failed_fb = 0;
+	gDbg       = 0;
+	Ok_fb      = 0;
+	Failed_fb  = 0;
 	gLastScene = 0;
 	
 	for(i = 1 to MAX_ITEMS)
 	{
-		gChLevel[i] = 0;
-		gZnLevel[i] = 0;
+		gChLevel[i]         = 0;
 		Channel_Level_fb[i] = 0;
-		Zone_Level_fb[i] = 0;
 	}
+	
+	Link_AB_Linked_fb   = 0;
+	Link_AB_Unlinked_fb = 1;  // default to "not linked"
 	
 	RefreshSettings();
 }
