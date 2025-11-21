@@ -118,12 +118,22 @@
 		],
         "ShadeVisibility":
         [
-            "false", 
-            "false",
-            "false",
-            "False",
-            "False",
-            "False"
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true", 
+            "true"
         ],
         "CameraVisibility":[
             "True",
