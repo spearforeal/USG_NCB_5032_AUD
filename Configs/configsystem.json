@@ -8,7 +8,7 @@
             "59288311"
         ],
         "AutoshutdownEnable":["True"],
-        "DSP01IpAddress":["10.60.4.23"],
+        "DSP01IpAddress":["10.174.132.18"],
         "PasswordInUse":["false"],
         "PasswordOnMode7":[
             "True"
@@ -19,10 +19,10 @@
         "USBSwitcherPassword": [""],
         "USBSwitcherDebugname": [""],
         "USBSwitcherPortnumber": [2234],
-        "Camera1IpAddress":["10.60.4.45"],
+        "Camera1IpAddress":["10.174.132.41"],
         "Camera1UserName":["admin"],
         "Camera1Password":["8012662428"],
-        "Camera2IpAddress":["10.60.4.46"],
+        "Camera2IpAddress":["10.174.132.42"],
         "Camera2UserName":["admin"],
         "Camera2Password":["8012662428"],
         "Camera3IpAddress":["192.168.1.30"],
