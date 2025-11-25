@@ -91,9 +91,9 @@
 			"True",
 			"True",
 			"true",
-			"True",
+			"false",
             "false",
-            "false",
+            "true",
             "True"
 		],
         "ShadeVisibility":
