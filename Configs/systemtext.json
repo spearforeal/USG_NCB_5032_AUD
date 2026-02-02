@@ -16,7 +16,7 @@
             "Mic Control"
         ],
         "CameraSrcInstructions": [
-            ""
+            "Select far End Source"
         ],
         "PMOutputSelect1Label": [
             "Displays"
@@ -282,7 +282,7 @@
         "Mode7HelpMessage2": [
             "This message is the mode 7 help message 2 of 2. I suppose that there should be some information here but I got nothing."
         ],
-        "BannerHelpMessage":[
+        "BannerHelpMessage": [
             "For Assistance With This Room Please Call 801-538-3074"
         ]
     }

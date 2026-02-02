@@ -1,5 +1,5 @@
 {
-    "RoomAConfig":{
+    "RoomAConfig": {
         "SourceVisibility": [
             "true",
             "true",
@@ -7,8 +7,8 @@
             "true",
             "true",
             "true",
-            "false",
-            "false",
+            "true",
+            "true",
             "false",
             "false",
             "False",
@@ -28,7 +28,7 @@
             "false"
         ],
         "DestinationVisibility": [
-            "false",
+            "true",
             "false",
             "false",
             "false",
@@ -49,8 +49,8 @@
             "false",
             "false"
         ],
-        "DisplayVisibility":[
-            "true",
+        "DisplayVisibility": [
+            "false",
             "true",
             "true",
             "false",
@@ -61,34 +61,12 @@
             "false",
             "false"
         ],
-        "AudioControlVisibility":[
+        "AudioControlVisibility": [
             "true",
             "true",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false",
-            "false"
-        ],
-        "MicControlVisibility":[
             "true",
-            "false",
-            "false",
-            "false",
-            "false",
+            "true",
+            "true",
             "false",
             "false",
             "false",
@@ -105,37 +83,57 @@
             "false",
             "false"
         ],
-        "LightingPresetVisibility":
-		[
-			"true",
-			"True",
-			"True",
-			"true",
-			"false",
+        "MicControlVisibility": [
+            "true",
+            "true",
+            "true",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false",
+            "false"
+        ],
+        "LightingPresetVisibility": [
+            "true",
+            "True",
+            "True",
+            "true",
+            "false",
             "false",
             "True",
             "True"
-		],
-        "ShadeVisibility":
-        [
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
-            "true", 
+        ],
+        "ShadeVisibility": [
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
+            "true",
             "true"
         ],
-        "CameraVisibility":[
+        "CameraVisibility": [
             "True",
             "false",
             "False",
@@ -143,7 +141,7 @@
             "False",
             "False"
         ],
-        "CameraControlSourceVisibility":[
+        "CameraControlSourceVisibility": [
             "true",
             "true",
             "true",
@@ -151,16 +149,16 @@
             "true",
             "true",
             "True",
+            "true",
             "false",
             "false",
-            "false",
             "False",
             "False",
             "False",
             "False",
             "False",
             "False",
-            "False",
+            "true",
             "false",
             "false",
             "false",
@@ -170,19 +168,19 @@
             "false",
             "false"
         ],
-        "PMDestinationVisibility":[
+        "PMDestinationVisibility": [
             "True",
+            "false",
             "True",
-            "True",
+            "true",
+            "true",
             "False",
             "False",
+            "false",
             "False",
             "False",
-            "True",
-            "False",
-            "False",
-            "False",
-            "False",
+            "true",
+            "true",
             "False",
             "False",
             "False",
@@ -192,7 +190,7 @@
             "False",
             "False"
         ],
-        "PMSourceVisiblity":[
+        "PMSourceVisiblity": [
             "true",
             "true",
             "true",
@@ -200,6 +198,7 @@
             "true",
             "true",
             "True",
+            "true",
             "false",
             "false",
             "false",
@@ -208,8 +207,7 @@
             "false",
             "false",
             "false",
-            "false",
-            "false",
+            "true",
             "false",
             "false",
             "false",
@@ -219,7 +217,7 @@
             "false",
             "false"
         ],
-        "StartupRoute":[
+        "StartupRoute": [
             0,
             0,
             0,

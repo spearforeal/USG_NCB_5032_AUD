@@ -84226,6 +84226,7 @@ H=744
 SmC=2942
 Nm=Div_Aud_AB_NVX_XPanel_[MODE]CameraControl_USBSelectList.ced
 ObjVer=1
+SmVr=1220
 PrH=2293
 CF=2
 n1I=4018
@@ -84239,24 +84240,6 @@ mO=4021
 tO=4035
 mP=1
 P1=58d
-NGrpStI=4035
-GrpStI11=4
-GrpStI2012=6
-GrpStI2013=4
-GrpStI4014=6
-GrpStI4015=4
-GrpStI4018=6
-GrpStI4032=4
-GrpStI4035=6
-NGrpStO=4035
-GrpStO11=4
-GrpStO2012=6
-GrpStO2013=4
-GrpStO4014=6
-GrpStO4015=4
-GrpStO4018=6
-GrpStO4032=4
-GrpStO4035=6
 CedH=8
 ]
 [
@@ -84265,6 +84248,7 @@ H=745
 SmC=2942
 Nm=Div_Aud_AB_NVX_XPanel_[MODE]CameraControl_USBSelectList.ced
 ObjVer=1
+SmVr=1220
 PrH=2284
 CF=2
 n1I=4018
@@ -84278,24 +84262,6 @@ mO=4021
 tO=4035
 mP=1
 P1=58d
-NGrpStI=4035
-GrpStI11=4
-GrpStI2012=6
-GrpStI2013=4
-GrpStI4014=6
-GrpStI4015=4
-GrpStI4018=6
-GrpStI4032=4
-GrpStI4035=6
-NGrpStO=4035
-GrpStO11=4
-GrpStO2012=6
-GrpStO2013=4
-GrpStO4014=6
-GrpStO4015=4
-GrpStO4018=6
-GrpStO4032=4
-GrpStO4035=6
 CedH=58
 ]
 [
@@ -102171,7 +102137,7 @@ Cmn1=Off\\
 mI=9
 I4=2
 I5=8
-I6=644
+I6=4100
 I7=6266
 I8=1840
 I9=588
@@ -102308,7 +102274,7 @@ Cmn1=Off\\
 mI=9
 I4=2
 I5=8
-I6=644
+I6=4100
 I7=6266
 I8=1859
 I9=589
@@ -152186,8 +152152,6 @@ CedVer=1
 CedMod=
 GUID=E6707C04-AB42-47DE-873B-5F33C3A68D43
 Hint=USBSelectList (Smart Object ID=58)
-SGControlType=Subpage Reference List Vertical
-SGControlName=USBSelectList
 ]
 [
 ObjTp=CED
@@ -152736,8 +152700,6 @@ CedVer=1
 CedMod=
 GUID=E6707C04-AB42-47DE-873B-5F33C3A68D43
 Hint=USBSelectList (Smart Object ID=58)
-SGControlType=Subpage Reference List Vertical
-SGControlName=USBSelectList
 ]
 [
 ObjTp=CED
