@@ -39,6 +39,10 @@
         "USBSwitcherPortnumber": [
             2234
         ],
+        "CameraSpeedLow":[3],
+        "CameraSpeedHigh":[12],
+        "CameraZoomSpeedLow":[1],
+        "CameraZoomSpeedHigh":[4],
         "Camera1IpAddress": [
             "10.174.132.41"
         ],
@@ -228,6 +232,14 @@
             61,
             14,
             99
+        ],
+        "CameraSpeedNames":[
+            "Slow",
+            "Fast"
+        ],
+        "CameraSpeedIcon":[
+            14,
+            14
         ],
         "CameraPresetVisibility": [
             "True",

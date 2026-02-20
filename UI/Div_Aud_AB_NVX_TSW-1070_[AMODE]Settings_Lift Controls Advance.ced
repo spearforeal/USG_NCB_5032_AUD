@@ -10,7 +10,7 @@ VTProeVer=6.2.02
 ObjTp=Symbol
 Name=Div_Aud_AB_NVX_TSW-1070_[AMODE]Settings_Lift Controls Advance.ced
 Hint=Lift Controls Advance (Smart Object ID=53)
-Code=52
+Code=53
 SGControlType=Subpage Reference List Horizontal
 SGControlName=Lift Controls Advance
 GUID=25DF9305-2D09-4010-A21C-8AF9941E7538
@@ -272,14 +272,14 @@ OutputList3SigType16=Serial
 ParamCue1=SmartObjectId
 ParamSigType1=Constant
 MPp=1
-Pp1=52
-CedH=52
+Pp1=53
+CedH=53
 SmartObjId=53d
 ]
 ; Parameter Properties for Smart Object ID
 [
 ObjTp=Dp
-H=52
+H=53
 Tp=1
 HD=TRUE
 DV=53d
@@ -292,7 +292,7 @@ Sgn=0
 ; Smart Objects Definition section
 [
 ObjTp=CED
-H=52
+H=53
 Name=Div_Aud_AB_NVX_TSW-1070_[AMODE]Settings_Lift Controls Advance.ced
 ;Cedver is the version of the Smart Graphics control, not the CED file format.
 ;If the control definition changes, increment this.
